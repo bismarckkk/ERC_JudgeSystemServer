@@ -5,7 +5,7 @@ import binascii
 
 
 class Link:
-    def __init__(self, ip, port, sh: BackgroundScheduler, rm):
+    def __init__(self, ip, port, sh: BackgroundScheduler, rm, add):
         self.ip = ip
         self.cache = b''
         self.port = port
@@ -13,18 +13,28 @@ class Link:
         self.alive = True
         self.sh = sh
         self.team = '123456'
+        self.car = -1
         self.rm = rm
+        self._add = add
         self.sh.add_job(self.lostConnect, 'date', run_date=datetime.datetime.now()+datetime.timedelta(seconds=6),
-                        id=self.ip+'-refresh')
+                        id=self.ip+'-refresh', replace_existing=True)
+
+    def add(self, event, message):
+        self._add(self.ip, self.team, self.car, event, message)
 
     def lostConnect(self):
         self.alive = False
+        self.add('lost', {})
         self.sh.add_job(self.rm, 'date', run_date=datetime.datetime.now() + datetime.timedelta(minutes=3),
-                        id=self.ip + '-delete', args=self.ip)
+                        id=self.ip + '-delete', args=(self.ip,))
 
     def refreshAlive(self):
-        self.sh.reschedule_job(self.ip+'-refresh', 'date',
-                               run_date=datetime.datetime.now()+datetime.timedelta(seconds=6))
+        if not self.alive:
+            self.alive = True
+            self.add('reconnect', {})
+            self.sh.remove_job(self.ip + '-delete')
+        self.sh.add_job(self.lostConnect, 'date', run_date=datetime.datetime.now() + datetime.timedelta(seconds=6),
+                        id=self.ip + '-refresh', replace_existing=True)
 
     @staticmethod
     def getCRC(data):
@@ -67,11 +77,12 @@ class Link:
             self.cache = data[-255:]
 
     def processOrder(self, order, args: bytes):
-        print(self.ip, self.bytes2str(order), self.bytes2str(args))
+        print(self.ip, order, self.bytes2str(args))
         if order == 0x80:
-            self.team = args.decode()
-            print('Team %s register at %s' % (self.team, self.ip))
-        if self.team == '123456':
+            self.team = args[:6].decode()
+            self.car = args[6]
+            self.add('register', {})
+        if self.team == '123456' or self.car == -1:
             raise NameError('IP %s not register' % self.ip)
 
     def send(self, data):

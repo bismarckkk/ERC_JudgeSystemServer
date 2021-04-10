@@ -2,31 +2,63 @@ import socket
 from apscheduler.schedulers.background import BackgroundScheduler
 from link import Link
 import traceback
+from multiprocessing import Process, Queue
+from typing import Dict
+import time
 
 
-class UdpServer:
+class UdpServer(Process):
     server_port = 6000
     client_port = 6001
     sh = BackgroundScheduler()
     server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    server.bind(("0.0.0.0", server_port))
-    links = {}
+    links: Dict[Link, Link] = {}
+
+    def __init__(self, queue: Queue):
+        Process.__init__(self, daemon=True)
+        self.queue = queue
 
     def removeLink(self, ip):
         if ip in self.links.keys():
+            self.addQueue(ip, self.links[ip].team, self.links[ip].car, 'remove', {})
             del self.links[ip]
 
+    def addQueue(self, ip, team, car, event, message):
+        if team == '123456':
+            return
+        if event == 'communication':
+            for it in self.links:
+                if it.team != team or it.car == car:
+                    continue
+                it.sendOrder(0xa1, message)
+                self.queue.put({
+                    'ip': ip,
+                    'team': team,
+                    'car': car,
+                    'time': time.time(),
+                    'event': 'communication',
+                    'message': it.car
+                })
+            return
+        self.queue.put({
+            'ip': ip,
+            'team': team,
+            'car': car,
+            'time': time.time(),
+            'event': event,
+            'message': message
+        })
+
     def run(self):
+        self.server.bind(("0.0.0.0", self.server_port))
+        self.sh.start()
         while True:
-            data, (addr, _) = self.server.recvfrom(1024)
+            data, (addr, _) = self.server.recvfrom(256)
             if addr not in self.links.keys():
-                self.links[addr] = Link(addr, self.client_port, self.sh, self.removeLink)
+                self.links[addr] = Link(addr, self.client_port, self.sh, self.removeLink, self.addQueue)
             try:
                 self.links[addr].recv(data)
             except:
                 print(traceback.format_exc())
 
-
-s = UdpServer()
-s.run()
 
