@@ -19,19 +19,19 @@ class Link:
         self.sh.add_job(self.lostConnect, 'date', run_date=datetime.datetime.now()+datetime.timedelta(seconds=6),
                         id=self.ip+'-refresh', replace_existing=True)
 
-    def add(self, event, message):
+    def add(self, event, message=None):
         self._add(self.ip, self.team, self.car, event, message)
 
     def lostConnect(self):
         self.alive = False
-        self.add('lost', {})
+        self.add('lost')
         self.sh.add_job(self.rm, 'date', run_date=datetime.datetime.now() + datetime.timedelta(minutes=3),
                         id=self.ip + '-delete', args=(self.ip,))
 
     def refreshAlive(self):
         if not self.alive:
             self.alive = True
-            self.add('reconnect', {})
+            self.add('reconnect')
             self.sh.remove_job(self.ip + '-delete')
         self.sh.add_job(self.lostConnect, 'date', run_date=datetime.datetime.now() + datetime.timedelta(seconds=6),
                         id=self.ip + '-refresh', replace_existing=True)
@@ -81,9 +81,21 @@ class Link:
         if order == 0x80:
             self.team = args[:6].decode()
             self.car = args[6]
-            self.add('register', {})
+            self.add('register')
         if self.team == '123456' or self.car == -1:
             raise NameError('IP %s not register' % self.ip)
+        if order == 0x03:
+            self.add('communication', args)
+        if order == 0x01:
+            if args[0] == self.car:
+                self.add('start')
+                self.ack()
+            raise NameError('Car id not match')
+        if order == 0x02:
+            if args[0] == self.car:
+                self.add('stop')
+                self.ack()
+            raise NameError('Car id not match')
 
     def send(self, data):
         self.s.sendto(data, (self.ip, self.port))
