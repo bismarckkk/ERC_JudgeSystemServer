@@ -45,6 +45,8 @@ class Link:
         return binascii.b2a_hex(data).decode()
 
     def recv(self, data):
+        if len(data) == 0:
+            return
         self.refreshAlive()
         nowIter = 0
         data = self.cache + data
@@ -90,12 +92,14 @@ class Link:
             if args[0] == self.car:
                 self.add('start')
                 self.ack()
-            raise NameError('Car id not match')
+            else:
+                raise NameError('Car id not match')
         if order == 0x02:
             if args[0] == self.car:
                 self.add('stop')
                 self.ack()
-            raise NameError('Car id not match')
+            else:
+                raise NameError('Car id not match')
 
     def send(self, data):
         self.s.sendto(data, (self.ip, self.port))
