@@ -1,6 +1,6 @@
 import serial
 from apscheduler.schedulers.background import BackgroundScheduler
-from link import Link
+from serialLink import SerialLink as Link
 import traceback
 from multiprocessing import Process, Queue
 from typing import Dict
@@ -11,7 +11,7 @@ class SerialServer(Process):
     server_port = 6000
     client_port = 6001
     sh = BackgroundScheduler()
-    com = 'com2'
+    com = 'com4'
     links: Dict[Link, Link] = {}
     serial = None
 
@@ -57,7 +57,7 @@ class SerialServer(Process):
             addr = 'serial'
             data = self.serial.read(256)
             if addr not in self.links.keys():
-                self.links[addr] = Link(addr, self.client_port, self.sh, self.removeLink, self.addQueue)
+                self.links[addr] = Link(addr, self.client_port, self.sh, self.removeLink, self.addQueue, self.serial)
             try:
                 self.links[addr].recv(data)
             except:

@@ -8,8 +8,8 @@ import time
 
 
 class UdpServer(Process):
-    server_port = 6000
-    client_port = 6001
+    server_port = 6666
+    client_port = 2333
     sh = BackgroundScheduler()
     server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     links: Dict[Link, Link] = {}

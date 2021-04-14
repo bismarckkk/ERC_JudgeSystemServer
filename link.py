@@ -15,6 +15,7 @@ class Link:
         self.team = '123456'
         self.car = -1
         self.rm = rm
+        self.seq = 0
         self._add = add
         self.sh.add_job(self.lostConnect, 'date', run_date=datetime.datetime.now()+datetime.timedelta(seconds=6),
                         id=self.ip+'-refresh', replace_existing=True)
@@ -50,11 +51,14 @@ class Link:
         self.refreshAlive()
         nowIter = 0
         data = self.cache + data
-        for i in range(1, len(data)):
+        for i in range(6, len(data)):
             if len(data) - i <= 6:
                 break
             if i < nowIter:
                 continue
+            if data[i - 6] != 0x41 or data[i - 5] != 0x41 or data[i - 4] != 0x41 or data[i - 3] != 0x41:
+                continue
+            seq = data[i - 2]
             if data[i - 1] != 0xaa or data[i] != 0:
                 continue
             length = data[i + 1]
@@ -62,11 +66,18 @@ class Link:
                 break
             if length < 8:
                 continue
-            if data[i + length - 2] != 0xaa or data[i + length - 3] != 0:
+            if data[i + length - 2] != 0xbb or data[i + length - 3] != 0x11:
                 continue
             crc = self.getCRC(data[i - 1: i + length - 1])
             if data[i + length - 4] != crc:
                 continue
+            if seq == self.seq - 1:
+                continue
+            if seq > self.seq:
+                self.add('lost_pkg')
+            self.seq = 1 + seq
+            if self.seq == 256:
+                self.seq = 0
             order = data[i + 2]
             args = data[i + 3: i + length - 4]
             self.cache = b''
@@ -79,15 +90,17 @@ class Link:
             self.cache = data[-255:]
 
     def processOrder(self, order, args: bytes):
-        print(self.ip, order, self.bytes2str(args))
         if order == 0x80:
             self.team = args[:6].decode()
             self.car = args[6]
             self.add('register')
+            self.sendOrder(0xa0, 1)
+            self.ack()
         if self.team == '123456' or self.car == -1:
             raise NameError('IP %s not register' % self.ip)
         if order == 0x03:
             self.add('communication', args)
+            self.ack()
         if order == 0x01:
             if args[0] == self.car:
                 self.add('start')
@@ -122,10 +135,10 @@ class Link:
             raise BufferError('Args is too long')
         frameHead = b'\xaa\x00'
         length = self.toBytes(7 + len(args))
-        frameEnd = b'\x00\xaa'
+        frameEnd = b'\x11\xbb'
         crc = self.getCRC(frameHead + length + order + args + self.toBytes(0) + frameEnd)
         frame = frameHead + length + order + args + self.toBytes(crc) + frameEnd
-        print(frame)
+        self.send(frame)
 
     def ack(self):
         self.sendOrder(0xa0, 2)
