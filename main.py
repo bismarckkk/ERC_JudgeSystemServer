@@ -1,11 +1,9 @@
 from udpServer import UdpServer
-from serialServer import SerialServer
 from main_thread import Main
 from multiprocessing import Queue
 import queue
 from web import Web
 import time
-import datetime
 
 if __name__ == '__main__':
     queue1 = Queue(maxsize=1000)
@@ -22,6 +20,8 @@ if __name__ == '__main__':
     web.start()
     main = Main(onChange)
     udpServer = UdpServer(queue1).start()
+    time.sleep(3)
+    print('服务启动成功')
     while True:
         while not queue1.empty():
             main.response(queue1.get())

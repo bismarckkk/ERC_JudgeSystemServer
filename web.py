@@ -28,6 +28,7 @@ class Web(Thread):
         self.q = q
         self.app = Flask(__name__)
         self.cars = {}
+        self.http_server = None
         self.add_endpoint('/', self.index)
         self.add_endpoint('/asset-manifest.json', self.ass)
         self.add_endpoint('/manifest.json', self.mani)
@@ -68,7 +69,6 @@ class Web(Thread):
                     'name': k1,
                     **v1
                 })
-                print(te)
                 te['children'][-1]['connect_time'] = int(te['children'][-1]['connect_time'].timestamp() * 1000)
                 if isinstance(te['children'][-1]['start_time'], datetime.datetime):
                     te['children'][-1]['start_time'] = int(te['children'][-1]['start_time'].timestamp() * 1000)
@@ -116,4 +116,6 @@ class Web(Thread):
         return 'ok'
 
     def run(self):
-        self.app.run()
+        self.http_server = WSGIServer(('127.0.0.1', 5000), self.app)
+        print("http模块上线")
+        self.http_server.serve_forever()

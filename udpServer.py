@@ -52,9 +52,9 @@ class UdpServer(Process):
     def run(self):
         self.server.bind(("0.0.0.0", self.server_port))
         self.sh.start()
+        print('UDP模块上线')
         while True:
             data, (addr, _) = self.server.recvfrom(256)
-            print(data)
             if addr not in self.links.keys():
                 self.links[addr] = Link(addr, self.client_port, self.sh, self.removeLink, self.addQueue)
             try:
