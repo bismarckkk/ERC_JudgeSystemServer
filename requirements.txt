@@ -1,2 +1,4 @@
 APScheduler
 pyserial
+Flask
+gevent

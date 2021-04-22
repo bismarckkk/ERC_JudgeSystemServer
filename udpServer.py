@@ -4,7 +4,7 @@ from link import Link
 import traceback
 from multiprocessing import Process, Queue
 from typing import Dict
-import time
+import datetime
 
 
 class UdpServer(Process):
@@ -35,7 +35,7 @@ class UdpServer(Process):
                     'ip': ip,
                     'team': team,
                     'car': car,
-                    'time': time.time(),
+                    'time': datetime.datetime.now(),
                     'event': 'communication',
                     'message': it.car
                 })
@@ -44,7 +44,7 @@ class UdpServer(Process):
             'ip': ip,
             'team': team,
             'car': car,
-            'time': time.time(),
+            'time': datetime.datetime.now(),
             'event': event,
             'message': message
         })
@@ -54,6 +54,7 @@ class UdpServer(Process):
         self.sh.start()
         while True:
             data, (addr, _) = self.server.recvfrom(256)
+            print(data)
             if addr not in self.links.keys():
                 self.links[addr] = Link(addr, self.client_port, self.sh, self.removeLink, self.addQueue)
             try:
